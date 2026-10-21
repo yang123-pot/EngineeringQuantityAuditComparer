@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EngineeringQuantityAuditComparer.Core\EngineeringQuantityAuditComparer.Core.csproj" />
+    <ProjectReference Include="..\..\src\EngineeringQuantityAuditComparer.Infrastructure\EngineeringQuantityAuditComparer.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\EngineeringQuantityAuditComparer.App\EngineeringQuantityAuditComparer.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\assets\ReportTemplate.xlsx" Link="Assets\ReportTemplate.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\EngineeringQuantityAuditComparer.App\MainWindow.xaml"
+          Link="SourceUnderTest\MainWindow.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

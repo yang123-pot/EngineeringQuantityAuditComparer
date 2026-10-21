@@ -1,0 +1,40 @@
+# Build outputs
+**/bin/
+**/obj/
+TestResults/
+*.trx
+*.pdb
+
+# Local release and verification outputs
+outputs/
+artifacts/
+.codex-tmp/
+.superpowers/
+docs/superpowers/
+
+# IDE and user-specific files
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local logs and temporary files
+*.log
+*.tmp
+*.temp
+~$*
+
+# Workbook data is private by default; only the neutral report template is public.
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+!assets/ReportTemplate.xlsx

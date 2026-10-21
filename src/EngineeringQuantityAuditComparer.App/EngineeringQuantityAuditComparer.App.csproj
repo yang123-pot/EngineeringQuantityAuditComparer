@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\EngineeringQuantityAuditComparer.Core\EngineeringQuantityAuditComparer.Core.csproj" />
+    <ProjectReference Include="..\EngineeringQuantityAuditComparer.Infrastructure\EngineeringQuantityAuditComparer.Infrastructure.csproj" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>工程量审减分析助手</AssemblyName>
+    <RootNamespace>EngineeringQuantityAuditComparer.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>工程量审减分析助手</Product>
+    <Company>yang123-pot</Company>
+    <Version>1.0.0.1</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\assets\ReportTemplate.xlsx" Link="Assets\ReportTemplate.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\使用说明.md" Link="使用说明.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-LICENSES\**\*" Link="THIRD-PARTY-LICENSES\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

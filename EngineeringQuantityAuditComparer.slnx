@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EngineeringQuantityAuditComparer.App/EngineeringQuantityAuditComparer.App.csproj" />
+    <Project Path="src/EngineeringQuantityAuditComparer.Core/EngineeringQuantityAuditComparer.Core.csproj" />
+    <Project Path="src/EngineeringQuantityAuditComparer.Infrastructure/EngineeringQuantityAuditComparer.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EngineeringQuantityAuditComparer.Tests/EngineeringQuantityAuditComparer.Tests.csproj" />
+  </Folder>
+</Solution>
