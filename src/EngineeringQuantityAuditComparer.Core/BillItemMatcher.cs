@@ -181,9 +181,10 @@ internal static class BillItemMatcher
         }
 
         var candidate = candidatesWithStrictKey[0];
-        var status = TextNormalizer.Normalize(candidate.Code) == code
-            ? MatchStatus.CodeMatched
-            : MatchStatus.CodeChanged;
+        var candidateCode = TextNormalizer.Normalize(candidate.Code);
+        var status = string.IsNullOrEmpty(code) || string.IsNullOrEmpty(candidateCode)
+            ? MatchStatus.ContentMatched
+            : candidateCode == code ? MatchStatus.CodeMatched : MatchStatus.CodeChanged;
         return new StrictMatch(candidate, status);
     }
 

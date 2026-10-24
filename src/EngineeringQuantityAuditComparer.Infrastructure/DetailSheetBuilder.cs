@@ -284,7 +284,7 @@ internal static class DetailSheetBuilder
         worksheet.Column(layout.CommentColumn).Width = 24;
         if (layout.MatchStatusColumn is int matchStatusColumn)
         {
-            worksheet.Column(matchStatusColumn).Width = 14;
+            worksheet.Column(matchStatusColumn).Width = 26;
         }
 
         if (lastRow >= 5)
@@ -341,6 +341,7 @@ internal static class DetailSheetBuilder
         {
             MatchStatus.CodeMatched => "编码匹配",
             MatchStatus.CodeChanged => "编码变更",
+            MatchStatus.ContentMatched => "名称特征单位匹配（编码缺失）",
             MatchStatus.NeedsConfirmation => "待确认",
             MatchStatus.ManualLinked => "人工关联",
             MatchStatus.LaterOnly => pair == DifferenceKind.FinalVsSubmission ? "终审新增" : "初审新增",

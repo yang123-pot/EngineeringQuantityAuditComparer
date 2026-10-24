@@ -4,6 +4,7 @@ using System.Security;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using EngineeringQuantityAuditComparer.Core;
+using EngineeringQuantityAuditComparer.Infrastructure;
 
 namespace EngineeringQuantityAuditComparer.App.ViewModels;
 
@@ -343,7 +344,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             await _exporter.ExportAsync(Session, templatePath, outputPath, _cancellation.Token).ConfigureAwait(true);
-            StatusMessage = $"已导出：{outputPath}";
+            StatusMessage = $"已导出对比表：{outputPath}；审减分析报告：{ReportExporter.GetAnalysisReportPath(outputPath)}";
         }
         catch (OperationCanceledException)
         {

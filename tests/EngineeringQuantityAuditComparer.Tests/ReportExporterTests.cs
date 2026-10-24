@@ -62,10 +62,7 @@ public sealed class ReportExporterTests
         }
         finally
         {
-            if (File.Exists(output))
-            {
-                File.Delete(output);
-            }
+            DeleteIfExists(output);
         }
     }
 
@@ -901,6 +898,11 @@ public sealed class ReportExporterTests
         if (File.Exists(path))
         {
             File.Delete(path);
+        }
+        var analysisPath = ReportExporter.GetAnalysisReportPath(path);
+        if (File.Exists(analysisPath))
+        {
+            File.Delete(analysisPath);
         }
     }
 

@@ -142,7 +142,7 @@ public partial class MainWindow : Window
         var projectName = SanitizeFileName(ViewModel.Session.Submission.ProjectName);
         var dialog = new SaveFileDialog
         {
-            Title = "导出审减分析报告",
+            Title = "导出对比表和审减分析报告",
             Filter = "Excel 工作簿 (*.xlsx)|*.xlsx",
             AddExtension = true,
             DefaultExt = ".xlsx",

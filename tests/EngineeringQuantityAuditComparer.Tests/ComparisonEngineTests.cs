@@ -188,7 +188,9 @@ public sealed class ComparisonEngineTests
     [Theory]
     [InlineData("应急灯具", "LED 350W", "套")]
     [InlineData("灯具", "LED 500W", "套")]
+    [InlineData("灯具", "", "套")]
     [InlineData("灯具", "LED 350W", "盏")]
+    [InlineData("灯具", "LED 350W", "")]
     public void Same_code_requires_matching_name_feature_and_unit(
         string reviewName,
         string reviewFeature,
@@ -232,6 +234,43 @@ public sealed class ComparisonEngineTests
 
         Assert.Equal(MatchStatus.CodeChanged, row.PairComparisons[DifferenceKind.InitialVsSubmission].Status);
         Assert.Empty(row.AutomaticComment);
+    }
+
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("", "A01")]
+    [InlineData("A01", "")]
+    public void Matches_unique_content_when_a_code_is_blank_without_claiming_a_code_match_or_change(
+        string submissionCode,
+        string reviewCode)
+    {
+        var submission = Book("送审.xlsx", Unit("研发楼", Item("1", submissionCode, "支架", "", "m", 2m, 10m)));
+        var initial = Book("初审.xlsx", Unit("研发楼", Item("1", reviewCode, "支架", "", "m", 1m, 10m)));
+
+        var row = Assert.Single(Compare(submission, initial).UnitComparisons.Single().Rows);
+
+        Assert.NotNull(row.Submission);
+        Assert.NotNull(row.InitialReview);
+        Assert.NotEqual(MatchStatus.CodeMatched, row.Status);
+        Assert.NotEqual(MatchStatus.CodeChanged, row.Status);
+        Assert.DoesNotContain("编码变更", row.AutomaticComment, StringComparison.Ordinal);
+        Assert.Contains("工程量调整", row.AutomaticComment, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Does_not_guess_between_duplicate_blank_code_items()
+    {
+        var submission = Book("送审.xlsx", Unit("研发楼",
+            Item("1", "", "支架", "", "m", 1m, 10m),
+            Item("2", "", "支架", "", "m", 2m, 10m)));
+        var initial = Book("初审.xlsx", Unit("研发楼",
+            Item("1", "", "支架", "", "m", 1m, 10m),
+            Item("2", "", "支架", "", "m", 2m, 10m)));
+
+        var rows = Compare(submission, initial).UnitComparisons.Single().Rows;
+
+        Assert.Equal(4, rows.Count);
+        Assert.All(rows, row => Assert.True(row.Submission is null || row.InitialReview is null));
     }
 
     [Fact]

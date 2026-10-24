@@ -81,7 +81,9 @@ internal static class AutomaticCommentBuilder
 
         var prefix = pair.Kind == DifferenceKind.FinalVsSubmission ? "终审较送审" : stage;
         var changes = new List<string>(2);
-        if (TextNormalizer.Normalize(earlier.Code) != TextNormalizer.Normalize(later.Code))
+        var earlierCode = TextNormalizer.Normalize(earlier.Code);
+        var laterCode = TextNormalizer.Normalize(later.Code);
+        if (earlierCode.Length > 0 && laterCode.Length > 0 && earlierCode != laterCode)
         {
             changes.Add("编码变更");
         }
@@ -116,9 +118,11 @@ internal static class AutomaticCommentBuilder
             return MatchStatus.LaterOnly;
         }
 
-        return TextNormalizer.Normalize(earlier.Code) == TextNormalizer.Normalize(later.Code)
-            ? MatchStatus.CodeMatched
-            : MatchStatus.CodeChanged;
+        var earlierCode = TextNormalizer.Normalize(earlier.Code);
+        var laterCode = TextNormalizer.Normalize(later.Code);
+        return earlierCode.Length == 0 || laterCode.Length == 0
+            ? MatchStatus.ContentMatched
+            : earlierCode == laterCode ? MatchStatus.CodeMatched : MatchStatus.CodeChanged;
     }
 
     private static BillItem? Item(AlignedItem aligned, WorkbookRole role) => role switch

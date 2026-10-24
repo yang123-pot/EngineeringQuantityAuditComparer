@@ -30,6 +30,7 @@ public enum MatchStatus
     CodeChanged,
     NeedsConfirmation,
     ManualLinked,
+    ContentMatched,
     SubmissionOnly = EarlierOnly,
     ReviewOnly = LaterOnly
 }

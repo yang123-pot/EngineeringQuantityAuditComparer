@@ -206,7 +206,7 @@
                 </Grid.RowDefinitions>
                 <StackPanel>
                     <TextBlock Text="分析预览与导出" FontSize="22" FontWeight="SemiBold" Foreground="#213B39" />
-                    <TextBlock Text="单位工程页为不含税清单金额；导出前三页依次为“绝对差额 Top 20看板”“同类清单审增审减汇总看板”“汇总表”，含税总造价见汇总表。可在下表补充专业原因。" Foreground="#657B79" Margin="0,7,0,0" />
+                    <TextBlock Text="单位工程页为不含税清单金额；导出会生成对比工作簿及独立的审减分析报告。对比工作簿前三页为两张看板和汇总表，可在下表补充专业原因。" Foreground="#657B79" Margin="0,7,0,0" />
                 </StackPanel>
                 <DataGrid Grid.Row="1" Margin="0,16,0,14" ItemsSource="{Binding UnitPreviews}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                     <DataGrid.Columns>
@@ -236,7 +236,7 @@
                 </DataGrid>
                 <Grid Grid.Row="3" Margin="0,16,0,0">
                     <Button Content="返回重新选文件" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Click="BackToFiles_Click" />
-                    <Button Content="导出审减分析报告" HorizontalAlignment="Right" MinWidth="210" Click="Export_Click" />
+                    <Button Content="导出对比表及分析报告" HorizontalAlignment="Right" MinWidth="210" Click="Export_Click" />
                 </Grid>
             </Grid>
         </Grid>
@@ -245,7 +245,7 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="{Binding StatusMessage}" Foreground="#385D59" />
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="#385D59" TextWrapping="Wrap" />
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="#B42318" FontWeight="SemiBold" Margin="0,4,0,0" Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

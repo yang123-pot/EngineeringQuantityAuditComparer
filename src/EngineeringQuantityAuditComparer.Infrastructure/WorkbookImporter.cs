@@ -44,26 +44,34 @@ public sealed class WorkbookImporter : IWorkbookImporter
         var summaries = new List<TaxInclusiveSummaryItem>();
         var units = new List<UnitProject>();
         var projectName = Path.GetFileNameWithoutExtension(path);
+        var rolePrefix = $"（{RoleName(role)}）";
+        if (projectName.StartsWith(rolePrefix, StringComparison.Ordinal))
+        {
+            projectName = projectName[rolePrefix.Length..].Trim();
+        }
 
         for (var tableIndex = 0; tableIndex < dataSet.Tables.Count; tableIndex++)
         {
             var table = dataSet.Tables[tableIndex];
             cancellationToken.ThrowIfCancellationRequested();
             var titleText = FirstRowsText(table, 8);
-            if (titleText.Contains("单项工程投标报价汇总表", StringComparison.Ordinal))
+            if (titleText.Contains("单项工程投标报价汇总表", StringComparison.Ordinal) ||
+                titleText.Contains("单项工程汇总表", StringComparison.Ordinal))
             {
                 projectName = ExtractProjectName(table) ?? projectName;
                 summaries.AddRange(ParseSummary(table));
             }
-            else if (titleText.Contains("分部分项工程和单价措施项目清单与计价表", StringComparison.Ordinal))
+            else if (titleText.Contains("分部分项工程和单价措施项目清单与计价表", StringComparison.Ordinal) ||
+                     titleText.Contains("分部分项工程项目清单计价表", StringComparison.Ordinal))
             {
-                units.Add(ParseUnitProject(table, role, tableIndex));
+                units.Add(ParseUnitProject(table, role, tableIndex,
+                    titleText.Contains("分部分项工程项目清单计价表", StringComparison.Ordinal)));
             }
         }
 
         if (summaries.Count == 0)
         {
-            throw new InvalidDataException($"{RoleName(role)}文件中未识别到“单项工程投标报价汇总表”，请确认文件是否选反或格式是否正确。");
+            throw new InvalidDataException($"{RoleName(role)}文件中未识别到单项工程汇总表，请确认文件是否选反或格式是否正确。");
         }
 
         if (units.Count == 0)
@@ -76,14 +84,20 @@ public sealed class WorkbookImporter : IWorkbookImporter
 
     private static IReadOnlyList<TaxInclusiveSummaryItem> ParseSummary(DataTable table)
     {
-        var headerRow = FindRow(table, row => row.Any(cell => IsSummaryNameHeader(CellText(cell))));
+        var title = FirstRowsText(table, 3);
+        var updatedFormat = title.Contains("单项工程汇总表", StringComparison.Ordinal) &&
+            !title.Contains("单项工程投标报价汇总表", StringComparison.Ordinal);
+        var headerRow = FindRow(table, row => row.Any(cell => updatedFormat
+            ? TextNormalizer.Normalize(CellText(cell)) == "项目内容"
+            : IsSummaryNameHeader(CellText(cell))));
         if (headerRow < 0)
         {
             return [];
         }
 
-        var nameColumn = FindColumn(table.Rows[headerRow], "单位工程名称");
-        if (nameColumn < 0)
+        var nameColumn = updatedFormat ? FindColumn(table.Rows[headerRow], "项目内容")
+            : FindColumn(table.Rows[headerRow], "单位工程名称");
+        if (nameColumn < 0 && !updatedFormat)
         {
             nameColumn = FindColumn(table.Rows[headerRow], "单项工程名称");
         }
@@ -93,6 +107,10 @@ public sealed class WorkbookImporter : IWorkbookImporter
         {
             var row = table.Rows[rowIndex];
             var name = CellText(Cell(row, nameColumn)).Trim();
+            if (updatedFormat && !TryDecimal(Cell(row, 0), out _))
+            {
+                continue;
+            }
             if (string.IsNullOrWhiteSpace(name) || name.Contains("合计", StringComparison.Ordinal))
             {
                 continue;
@@ -107,7 +125,7 @@ public sealed class WorkbookImporter : IWorkbookImporter
         return result;
     }
 
-    private static UnitProject ParseUnitProject(DataTable table, WorkbookRole role, int sourceSheetIndex)
+    private static UnitProject ParseUnitProject(DataTable table, WorkbookRole role, int sourceSheetIndex, bool updatedFormat)
     {
         var headerRow = FindRow(table, row =>
             row.Any(cell => CellText(cell).Contains("项目编码", StringComparison.Ordinal)) &&
@@ -158,12 +176,39 @@ public sealed class WorkbookImporter : IWorkbookImporter
         var hasExplicitTitle = false;
         var hasUnmatchedSectionSubtotal = false;
         var passedRootTotal = false;
+        SectionFrame? updatedSection = null;
+        decimal updatedSectionTotal = 0m;
+        void CloseUpdatedSection()
+        {
+            if (updatedSection is null)
+            {
+                return;
+            }
+
+            parsedSections.Add(new BillSection(
+                updatedSection.Title,
+                1,
+                updatedSection.SourceRowIndex,
+                updatedSectionTotal,
+                updatedSection.DirectItemSourceRows,
+                IsRoot: false));
+            updatedSection = null;
+        }
+
         for (var rowIndex = headerRow + 1; rowIndex < table.Rows.Count; rowIndex++)
         {
             var row = table.Rows[rowIndex];
             var code = CellText(Cell(row, codeColumn)).Trim();
             var name = CellText(Cell(row, nameColumn)).Trim();
             var structuralLabel = TextNormalizer.Normalize(name);
+            if (updatedFormat && TextNormalizer.Normalize(CellText(Cell(row, sequenceColumn))) == "合计" &&
+                string.IsNullOrWhiteSpace(name) && TryDecimal(Cell(row, totalColumn), out var updatedRootTotal))
+            {
+                CloseUpdatedSection();
+                rootSection = new BillSection("整个工程", 0, rowIndex, updatedRootTotal, [], IsRoot: true);
+                break;
+            }
+
             if (IsStructuralTotal(structuralLabel))
             {
                 if (structuralLabel == "分部小计")
@@ -203,8 +248,19 @@ public sealed class WorkbookImporter : IWorkbookImporter
                 continue;
             }
 
-            if (!passedRootTotal && IsExplicitTitleRow(
+            if (updatedFormat && IsUpdatedSectionRow(row, sequenceColumn, codeColumn, nameColumn,
+                featureColumn, unitColumn, quantityColumn, unitPriceColumn, totalColumn))
+            {
+                CloseUpdatedSection();
+                updatedSection = new SectionFrame(name, 1, rowIndex);
+                updatedSectionTotal = DecimalOrZero(Cell(row, totalColumn));
+                hasExplicitTitle = true;
+                continue;
+            }
+
+            if (!updatedFormat && !passedRootTotal && IsExplicitTitleRow(
                 row,
+                sequenceColumn,
                 codeColumn,
                 nameColumn,
                 featureColumn,
@@ -218,7 +274,9 @@ public sealed class WorkbookImporter : IWorkbookImporter
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(name) ||
+                (string.IsNullOrWhiteSpace(code) && !HasItemEvidence(row, sequenceColumn,
+                    featureColumn, unitColumn, quantityColumn, unitPriceColumn, totalColumn)))
             {
                 continue;
             }
@@ -244,7 +302,13 @@ public sealed class WorkbookImporter : IWorkbookImporter
             {
                 openSections.Peek().DirectItemSourceRows.Add(rowIndex);
             }
+            else
+            {
+                updatedSection?.DirectItemSourceRows.Add(rowIndex);
+            }
         }
+
+        CloseUpdatedSection();
 
         if (openSections.Count > 0)
         {
@@ -292,6 +356,7 @@ public sealed class WorkbookImporter : IWorkbookImporter
 
     private static bool IsExplicitTitleRow(
         DataRow row,
+        int sequenceColumn,
         int codeColumn,
         int nameColumn,
         int featureColumn,
@@ -299,6 +364,7 @@ public sealed class WorkbookImporter : IWorkbookImporter
         int quantityColumn,
         int unitPriceColumn,
         int totalColumn) =>
+        string.IsNullOrWhiteSpace(CellText(Cell(row, sequenceColumn))) &&
         string.IsNullOrWhiteSpace(CellText(Cell(row, codeColumn))) &&
         !string.IsNullOrWhiteSpace(CellText(Cell(row, nameColumn))) &&
         string.IsNullOrWhiteSpace(CellText(Cell(row, featureColumn))) &&
@@ -306,6 +372,40 @@ public sealed class WorkbookImporter : IWorkbookImporter
         !TryDecimal(Cell(row, quantityColumn), out _) &&
         !TryDecimal(Cell(row, unitPriceColumn), out _) &&
         !TryDecimal(Cell(row, totalColumn), out _);
+
+    private static bool IsUpdatedSectionRow(
+        DataRow row,
+        int sequenceColumn,
+        int codeColumn,
+        int nameColumn,
+        int featureColumn,
+        int unitColumn,
+        int quantityColumn,
+        int unitPriceColumn,
+        int totalColumn) =>
+        string.IsNullOrWhiteSpace(CellText(Cell(row, sequenceColumn))) &&
+        string.IsNullOrWhiteSpace(CellText(Cell(row, codeColumn))) &&
+        !string.IsNullOrWhiteSpace(CellText(Cell(row, nameColumn))) &&
+        string.IsNullOrWhiteSpace(CellText(Cell(row, featureColumn))) &&
+        string.IsNullOrWhiteSpace(CellText(Cell(row, unitColumn))) &&
+        !TryDecimal(Cell(row, quantityColumn), out _) &&
+        !TryDecimal(Cell(row, unitPriceColumn), out _) &&
+        TryDecimal(Cell(row, totalColumn), out _);
+
+    private static bool HasItemEvidence(
+        DataRow row,
+        int sequenceColumn,
+        int featureColumn,
+        int unitColumn,
+        int quantityColumn,
+        int unitPriceColumn,
+        int totalColumn) =>
+        !string.IsNullOrWhiteSpace(CellText(Cell(row, sequenceColumn))) ||
+        !string.IsNullOrWhiteSpace(CellText(Cell(row, featureColumn))) ||
+        !string.IsNullOrWhiteSpace(CellText(Cell(row, unitColumn))) ||
+        TryDecimal(Cell(row, quantityColumn), out _) ||
+        TryDecimal(Cell(row, unitPriceColumn), out _) ||
+        TryDecimal(Cell(row, totalColumn), out _);
 
     private static bool IsStructuralTotal(string normalizedLabel) => normalizedLabel is
         "分部小计" or "分部分项合计" or "单价措施合计";

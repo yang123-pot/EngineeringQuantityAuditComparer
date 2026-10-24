@@ -7,6 +7,14 @@ namespace EngineeringQuantityAuditComparer.Infrastructure;
 
 public sealed class ReportExporter : IReportExporter
 {
+    public static string GetAnalysisReportPath(string outputPath)
+    {
+        var fullPath = Path.GetFullPath(outputPath);
+        return Path.Combine(
+            Path.GetDirectoryName(fullPath) ?? throw new InvalidOperationException("导出路径无效。"),
+            Path.GetFileNameWithoutExtension(fullPath) + "-审减分析报告.xlsx");
+    }
+
     public Task ExportAsync(ComparisonSession session, string templatePath, string outputPath, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -23,13 +31,18 @@ public sealed class ReportExporter : IReportExporter
         cancellationToken.ThrowIfCancellationRequested();
         var fullOutputPath = Path.GetFullPath(outputPath);
         var outputDirectory = Path.GetDirectoryName(fullOutputPath) ?? throw new InvalidOperationException("导出路径无效。");
+        var analysisPath = GetAnalysisReportPath(fullOutputPath);
         Directory.CreateDirectory(outputDirectory);
-        if (File.Exists(fullOutputPath))
+        if (File.Exists(fullOutputPath) || Directory.Exists(fullOutputPath) ||
+            File.Exists(analysisPath) || Directory.Exists(analysisPath))
         {
-            throw new IOException("目标文件已存在。为保护原始数据，程序不会覆盖现有文件。");
+            throw new IOException("对比表或审减分析报告的目标路径已存在。为保护原始数据，程序不会覆盖现有文件。");
         }
 
         var temporaryPath = Path.Combine(outputDirectory, $".{Path.GetFileNameWithoutExtension(fullOutputPath)}.{Guid.NewGuid():N}.tmp.xlsx");
+        var temporaryAnalysisPath = Path.Combine(outputDirectory, $".{Path.GetFileNameWithoutExtension(fullOutputPath)}.analysis.{Guid.NewGuid():N}.tmp.xlsx");
+        var createdMain = false;
+        var createdAnalysis = false;
         try
         {
             using (var workbook = CreateWorkbook(templatePath))
@@ -68,14 +81,41 @@ public sealed class ReportExporter : IReportExporter
 
             SetCalculationProperties(temporaryPath);
             ValidateOutput(temporaryPath, session.UnitComparisons.Count + 3);
+            using (var analysis = new XLWorkbook())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                AnalysisReportBuilder.Build(analysis, session);
+                analysis.SaveAs(temporaryAnalysisPath, validate: true, evaluateFormulae: false);
+            }
+            SetCalculationProperties(temporaryAnalysisPath);
+            ValidateOutput(temporaryAnalysisPath, ComparisonPairs.OutputFor(session.Request).Count * 2);
             cancellationToken.ThrowIfCancellationRequested();
             File.Move(temporaryPath, fullOutputPath, overwrite: false);
+            createdMain = true;
+            File.Move(temporaryAnalysisPath, analysisPath, overwrite: false);
+            createdAnalysis = true;
+        }
+        catch
+        {
+            if (createdAnalysis)
+            {
+                File.Delete(analysisPath);
+            }
+            if (createdMain)
+            {
+                File.Delete(fullOutputPath);
+            }
+            throw;
         }
         finally
         {
             if (File.Exists(temporaryPath))
             {
                 File.Delete(temporaryPath);
+            }
+            if (File.Exists(temporaryAnalysisPath))
+            {
+                File.Delete(temporaryAnalysisPath);
             }
         }
     }

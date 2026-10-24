@@ -73,7 +73,9 @@ public sealed class ThreeStageEndToEndTests
             var output = Path.Combine(directory, $"{modeName}-黄金样例.xlsx");
             var template = Path.Combine(AppContext.BaseDirectory, "Assets", "ReportTemplate.xlsx");
             await viewModel.ExportAsync(output, template);
-            Assert.Equal($"已导出：{output}", viewModel.StatusMessage);
+            Assert.Contains(output, viewModel.StatusMessage, StringComparison.Ordinal);
+            Assert.Contains(Path.Combine(directory, $"{modeName}-黄金样例-审减分析报告.xlsx"),
+                viewModel.StatusMessage, StringComparison.Ordinal);
 
             using var workbook = new XLWorkbook(output);
             Assert.Contains(workbook.Worksheets, x => x.Name == "研发楼安装");
