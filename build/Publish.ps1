@@ -26,7 +26,7 @@ if ($normalizedPublicationRoot -eq $filesystemRoot) {
 $artifactsRoot = $publicationRoot
 $portableRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot "免安装版"))
 $installerRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot "安装版"))
-$applicationVersion = "1.0.0.1"
+$applicationVersion = "1.0.0.2"
 $applicationDirectoryName = "工程量审减分析助手_" + $applicationVersion.Replace('.', '_')
 $applicationDirectory = [IO.Path]::GetFullPath((Join-Path $installerRoot "Application Files\$applicationDirectoryName"))
 $projectPath = Join-Path $repositoryRoot "src\EngineeringQuantityAuditComparer.App\EngineeringQuantityAuditComparer.App.csproj"

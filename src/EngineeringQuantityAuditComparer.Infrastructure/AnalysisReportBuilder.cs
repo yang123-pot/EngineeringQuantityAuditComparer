@@ -6,6 +6,7 @@ namespace EngineeringQuantityAuditComparer.Infrastructure;
 internal static class AnalysisReportBuilder
 {
     private const string AmountFormat = "#,##0.00;-#,##0.00;0.00";
+    private const string QuantityFormat = "#,##0.00#;-#,##0.00#;0.00";
     private const string RateFormat = "0.00%;-0.00%;0.00%";
 
     public static void Build(XLWorkbook workbook, ComparisonSession session)
@@ -90,96 +91,178 @@ internal static class AnalysisReportBuilder
     private static void BuildDetail(IXLWorksheet sheet, ComparisonSession session, StagePair pair)
     {
         var stageName = pair.Later == WorkbookRole.InitialReview ? "初审" : "终审";
-        sheet.Cell("A1").Value = $"{stageName}扣减项明细（不含税合价）";
-        sheet.Range("A1:H1").Merge();
-        WorksheetFormatting.ApplyTitle(sheet.Range("A1:H1"));
-        sheet.Cell("A2").Value = $"工程名称：{session.Submission.ProjectName}";
-        sheet.Range("A2:H2").Merge();
-        string[] headers = ["序号", "项目名称", "计量单位", "审减金额", "审增金额", "净扣减额", "占净扣减比", "名称核查（特征相同）"];
-        for (var column = 1; column <= headers.Length; column++)
-        {
-            sheet.Cell(4, column).Value = headers[column - 1];
-        }
-        WorksheetFormatting.StyleHeader(sheet.Range("A4:H4"), WorksheetFormatting.DifferenceHeaderColor);
+        var report = Aggregate(session, pair);
+        var buildings = report.Buildings;
+        var blockWidth = buildings.Count + 1;
+        var reducedQuantity = 4;
+        var increasedQuantity = reducedQuantity + blockWidth;
+        var reducedAmount = increasedQuantity + blockWidth;
+        var increasedAmount = reducedAmount + blockWidth;
+        var netAmount = increasedAmount + blockWidth;
+        var rate = netAmount + 1;
+        var nameCheck = rate + 1;
+        var firstDetailRow = 6;
+        var totalRow = firstDetailRow + report.Groups.Count;
 
-        var groups = Aggregate(session, pair);
-        var totalRow = groups.Count + 5;
-        for (var index = 0; index < groups.Count; index++)
+        sheet.Cell("A1").Value = $"{stageName}扣减项明细（不含税合价）";
+        sheet.Range(1, 1, 1, nameCheck).Merge();
+        WorksheetFormatting.ApplyTitle(sheet.Range(1, 1, 1, nameCheck));
+        sheet.Range(1, 1, 1, nameCheck).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        sheet.Cell("A2").Value = $"工程名称：{session.Submission.ProjectName}";
+        sheet.Range(2, 1, 2, nameCheck).Merge();
+        sheet.Cell("A3").Value = $"工程量差＝送审－{stageName}，核减与核增分别列示；各楼栋列之和等于对应合计。金额按分部分项清单不含税合价差统计，无法可靠识别楼栋时单列待核查。";
+        sheet.Range(3, 1, 3, nameCheck).Merge();
+        sheet.Range(3, 1, 3, nameCheck).Style.Alignment.WrapText = true;
+        sheet.Row(3).Height = 30;
+
+        string[] fixedHeaders = ["序号", "项目名称", "计量单位"];
+        for (var column = 1; column <= fixedHeaders.Length; column++)
         {
-            var group = groups[index];
-            var row = index + 5;
+            sheet.Cell(4, column).Value = fixedHeaders[column - 1];
+            sheet.Range(4, column, 5, column).Merge();
+        }
+        WriteMetricHeader(reducedQuantity, "核减工程量", "合计核减工程量");
+        WriteMetricHeader(increasedQuantity, "核增工程量", "合计核增工程量");
+        WriteMetricHeader(reducedAmount, "审减金额（不含税合价）", "合计审减金额");
+        WriteMetricHeader(increasedAmount, "审增金额（不含税合价）", "合计审增金额");
+        sheet.Cell(4, netAmount).Value = "净扣减额";
+        sheet.Cell(4, rate).Value = "占净扣减比";
+        sheet.Cell(4, nameCheck).Value = "名称核查（特征相同）";
+        foreach (var column in new[] { netAmount, rate, nameCheck })
+        {
+            sheet.Range(4, column, 5, column).Merge();
+        }
+        WorksheetFormatting.StyleHeader(sheet.Range(4, 1, 5, nameCheck), WorksheetFormatting.DifferenceHeaderColor);
+
+        for (var index = 0; index < report.Groups.Count; index++)
+        {
+            var group = report.Groups[index];
+            var row = index + firstDetailRow;
             sheet.Cell(row, 1).Value = index + 1;
             sheet.Cell(row, 2).Value = group.Name;
             sheet.Cell(row, 3).Value = group.Unit;
-            sheet.Cell(row, 4).Value = group.Reduction;
-            sheet.Cell(row, 5).Value = group.Increase;
-            sheet.Cell(row, 6).FormulaA1 = $"D{row}-E{row}";
-            sheet.Cell(row, 7).FormulaA1 = $"IF($F${totalRow}=0,0,F{row}/$F${totalRow})";
+            for (var buildingIndex = 0; buildingIndex < buildings.Count; buildingIndex++)
+            {
+                if (!group.ByBuilding.TryGetValue(buildings[buildingIndex], out var values)) continue;
+                WriteNonZero(sheet.Cell(row, reducedQuantity + buildingIndex + 1), values.ReducedQuantity);
+                WriteNonZero(sheet.Cell(row, increasedQuantity + buildingIndex + 1), values.IncreasedQuantity);
+                WriteNonZero(sheet.Cell(row, reducedAmount + buildingIndex + 1), values.Reduction);
+                WriteNonZero(sheet.Cell(row, increasedAmount + buildingIndex + 1), values.Increase);
+            }
+            foreach (var start in new[] { reducedQuantity, increasedQuantity, reducedAmount, increasedAmount })
+            {
+                sheet.Cell(row, start).FormulaA1 = $"SUM({sheet.Cell(row, start + 1).Address}:{sheet.Cell(row, start + buildings.Count).Address})";
+            }
+            sheet.Cell(row, netAmount).FormulaA1 = $"{sheet.Cell(row, reducedAmount).Address}-{sheet.Cell(row, increasedAmount).Address}";
+            sheet.Cell(row, rate).FormulaA1 = $"IF(${sheet.Cell(totalRow, netAmount).Address}=0,0,{sheet.Cell(row, netAmount).Address}/${sheet.Cell(totalRow, netAmount).Address})";
             if (group.OtherNames.Count > 0)
             {
-                sheet.Cell(row, 8).Value = "疑似同类：" + string.Join("、", group.OtherNames);
+                sheet.Cell(row, nameCheck).Value = "疑似同类：" + string.Join("、", group.OtherNames);
             }
         }
 
         sheet.Cell(totalRow, 2).Value = "合计";
-        WriteSumOrZero(sheet.Cell(totalRow, 4), "D", 5, totalRow - 1);
-        WriteSumOrZero(sheet.Cell(totalRow, 5), "E", 5, totalRow - 1);
-        sheet.Cell(totalRow, 6).FormulaA1 = $"D{totalRow}-E{totalRow}";
-        sheet.Cell(totalRow, 7).FormulaA1 = $"IF(F{totalRow}=0,0,1)";
+        foreach (var start in new[] { reducedAmount, increasedAmount })
+        {
+            for (var offset = 0; offset <= buildings.Count; offset++)
+            {
+                var column = start + offset;
+                WriteSumOrZero(sheet.Cell(totalRow, column), sheet.Column(column).ColumnLetter(), firstDetailRow, totalRow - 1);
+            }
+        }
+        sheet.Cell(totalRow, netAmount).FormulaA1 = $"{sheet.Cell(totalRow, reducedAmount).Address}-{sheet.Cell(totalRow, increasedAmount).Address}";
+        sheet.Cell(totalRow, rate).FormulaA1 = $"IF({sheet.Cell(totalRow, netAmount).Address}=0,0,1)";
 
-        sheet.Range(5, 4, totalRow, 6).Style.NumberFormat.Format = AmountFormat;
-        sheet.Range(5, 7, totalRow, 7).Style.NumberFormat.Format = RateFormat;
-        WorksheetFormatting.AddSignConditionalFormats(sheet.Range(5, 4, totalRow, 7));
-        WorksheetFormatting.StyleSummaryRow(sheet.Range(totalRow, 1, totalRow, 8));
-        WorksheetFormatting.ApplyBorders(sheet.Range(4, 1, totalRow, 8));
-        sheet.Range(1, 1, totalRow, 8).Style.Font.FontName = "宋体";
-        sheet.Range(4, 1, totalRow, 8).Style.Alignment.WrapText = true;
+        sheet.Range(firstDetailRow, reducedQuantity, totalRow, increasedQuantity + buildings.Count).Style.NumberFormat.Format = QuantityFormat;
+        sheet.Range(firstDetailRow, reducedAmount, totalRow, netAmount).Style.NumberFormat.Format = AmountFormat;
+        sheet.Range(firstDetailRow, rate, totalRow, rate).Style.NumberFormat.Format = RateFormat;
+        AddPositiveColor(sheet.Range(firstDetailRow, reducedQuantity, totalRow, reducedQuantity + buildings.Count), true);
+        AddPositiveColor(sheet.Range(firstDetailRow, reducedAmount, totalRow, reducedAmount + buildings.Count), true);
+        AddPositiveColor(sheet.Range(firstDetailRow, increasedQuantity, totalRow, increasedQuantity + buildings.Count), false);
+        AddPositiveColor(sheet.Range(firstDetailRow, increasedAmount, totalRow, increasedAmount + buildings.Count), false);
+        WorksheetFormatting.AddSignConditionalFormats(sheet.Range(firstDetailRow, netAmount, totalRow, netAmount));
+        WorksheetFormatting.StyleSummaryRow(sheet.Range(totalRow, 1, totalRow, nameCheck));
+        WorksheetFormatting.ApplyBorders(sheet.Range(4, 1, totalRow, nameCheck));
+        sheet.Range(1, 1, totalRow, nameCheck).Style.Font.FontName = "宋体";
+        sheet.Range(4, 1, totalRow, nameCheck).Style.Alignment.WrapText = true;
         sheet.Column(1).Width = 8;
         sheet.Column(2).Width = 34;
         sheet.Column(3).Width = 13;
-        sheet.Columns(4, 7).Width = 20;
-        sheet.Column(8).Width = 44;
-        sheet.SheetView.FreezeRows(4);
-        WorksheetFormatting.ConfigurePrint(sheet, totalRow, 8);
+        sheet.Columns(reducedQuantity, increasedAmount + buildings.Count).Width = 18;
+        sheet.Column(netAmount).Width = 20;
+        sheet.Column(rate).Width = 16;
+        sheet.Column(nameCheck).Width = 44;
+        sheet.SheetView.FreezeRows(5);
+        sheet.SheetView.FreezeColumns(3);
+        WorksheetFormatting.ConfigurePrint(sheet, totalRow, nameCheck);
+        sheet.PageSetup.PagesWide = Math.Max(1, (nameCheck + 11) / 12);
+
+        void WriteMetricHeader(int start, string title, string totalLabel)
+        {
+            sheet.Cell(4, start).Value = title;
+            sheet.Range(4, start, 4, start + buildings.Count).Merge();
+            sheet.Cell(5, start).Value = totalLabel;
+            for (var index = 0; index < buildings.Count; index++)
+            {
+                sheet.Cell(5, start + index + 1).Value = buildings[index];
+            }
+        }
     }
 
-    private static IReadOnlyList<DetailGroup> Aggregate(ComparisonSession session, StagePair pair)
+    private static DetailReportData Aggregate(ComparisonSession session, StagePair pair)
     {
         var groups = new Dictionary<(string Name, string Unit), DetailGroup>();
-        foreach (var row in session.UnitComparisons.SelectMany(unit => unit.Rows))
+        var buildings = new List<string>();
+        var seenBuildings = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var unit in session.UnitComparisons)
         {
-            var difference = row.Total(WorkbookRole.Submission) - row.Total(pair.Later);
-            if (difference == 0m)
+            foreach (var row in unit.Rows)
             {
-                continue;
-            }
+                var difference = row.Total(WorkbookRole.Submission) - row.Total(pair.Later);
+                var quantityDifference = row.Quantity(WorkbookRole.Submission) - row.Quantity(pair.Later);
+                if (difference == 0m && quantityDifference == 0m)
+                {
+                    continue;
+                }
 
-            var item = row.Submission ?? row.Item(pair.Later);
-            if (item is null)
-            {
-                continue;
-            }
+                var item = row.Submission ?? row.Item(pair.Later);
+                if (item is null)
+                {
+                    continue;
+                }
 
-            var key = (Name: TextNormalizer.Normalize(item.Name), Unit: TextNormalizer.Normalize(item.Unit));
-            if (!groups.TryGetValue(key, out var group))
-            {
-                group = new DetailGroup(item.Name, item.Unit, key.Name, key.Unit);
-                groups.Add(key, group);
-            }
+                var key = (Name: TextNormalizer.Normalize(item.Name), Unit: TextNormalizer.Normalize(item.Unit));
+                if (!groups.TryGetValue(key, out var group))
+                {
+                    group = new DetailGroup(item.Name, item.Unit, key.Name, key.Unit);
+                    groups.Add(key, group);
+                }
 
-            if (difference > 0m)
-            {
-                group.Reduction += difference;
-            }
-            else
-            {
-                group.Increase -= difference;
-            }
+                var building = ReportBuildingAttribution.ForRow(unit, row, pair.Later);
+                if (seenBuildings.Add(building)) buildings.Add(building);
+                if (!group.ByBuilding.TryGetValue(building, out var values))
+                {
+                    values = new BuildingTotals();
+                    group.ByBuilding.Add(building, values);
+                }
 
-            var feature = TextNormalizer.Normalize(item.Feature);
-            if (feature.Length > 0 && key.Unit.Length > 0)
-            {
-                group.Features.Add(feature);
+                if (quantityDifference > 0m) values.ReducedQuantity += quantityDifference;
+                if (quantityDifference < 0m) values.IncreasedQuantity -= quantityDifference;
+
+                if (difference > 0m)
+                {
+                    values.Reduction += difference;
+                }
+                else
+                {
+                    values.Increase -= difference;
+                }
+
+                var feature = TextNormalizer.Normalize(item.Feature);
+                if (feature.Length > 0 && key.Unit.Length > 0)
+                {
+                    group.Features.Add(feature);
+                }
             }
         }
 
@@ -209,10 +292,23 @@ internal static class AnalysisReportBuilder
             }
         }
 
-        return groups.Values
-            .OrderByDescending(group => group.Reduction + group.Increase)
+        var orderedGroups = groups.Values
+            .OrderByDescending(group => group.ByBuilding.Values.Sum(x => x.Reduction + x.Increase))
             .ThenBy(group => group.NormalizedName, StringComparer.Ordinal)
             .ToList();
+        return new DetailReportData(orderedGroups, buildings);
+    }
+
+    private static void WriteNonZero(IXLCell cell, decimal value)
+    {
+        if (value != 0m) cell.Value = value;
+    }
+
+    private static void AddPositiveColor(IXLRange range, bool isReduction)
+    {
+        var format = range.AddConditionalFormat().WhenGreaterThan(0);
+        format.Fill.SetBackgroundColor(XLColor.FromHtml(isReduction ? "#F4CCCC" : "#E2F0D9"));
+        format.Font.SetFontColor(XLColor.FromHtml(isReduction ? "#C00000" : "#006100"));
     }
 
     private static void WriteDifference(IXLWorksheet sheet, int row)
@@ -231,14 +327,23 @@ internal static class AnalysisReportBuilder
         cell.FormulaA1 = $"SUM({letter}{start}:{letter}{end})";
     }
 
+    private sealed record DetailReportData(IReadOnlyList<DetailGroup> Groups, IReadOnlyList<string> Buildings);
+
+    private sealed class BuildingTotals
+    {
+        public decimal ReducedQuantity { get; set; }
+        public decimal IncreasedQuantity { get; set; }
+        public decimal Reduction { get; set; }
+        public decimal Increase { get; set; }
+    }
+
     private sealed class DetailGroup(string name, string unit, string normalizedName, string normalizedUnit)
     {
         public string Name { get; } = name;
         public string Unit { get; } = unit;
         public string NormalizedName { get; } = normalizedName;
         public string NormalizedUnit { get; } = normalizedUnit;
-        public decimal Reduction { get; set; }
-        public decimal Increase { get; set; }
+        public Dictionary<string, BuildingTotals> ByBuilding { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Features { get; } = new(StringComparer.Ordinal);
         public SortedSet<string> OtherNames { get; } = new(StringComparer.Ordinal);
     }

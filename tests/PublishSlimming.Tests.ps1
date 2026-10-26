@@ -6,7 +6,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OutputRoot,
 
-    [string]$ExpectedVersion = "1.0.0.1",
+    [string]$ExpectedVersion = "1.0.0.2",
 
     [double]$MaximumInstallerMiB = 80
 )
