@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\LegacyClickOnceMigration\LegacyInstallationIdentity.cs" Link="InstallerUnderTest\LegacyInstallationIdentity.cs" />
     <None Include="..\..\assets\ReportTemplate.xlsx" Link="Assets\ReportTemplate.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\EngineeringQuantityAuditComparer.App\MainWindow.xaml"
           Link="SourceUnderTest\MainWindow.xaml"

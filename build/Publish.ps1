@@ -27,7 +27,7 @@ if ($normalizedPublicationRoot -eq $filesystemRoot) {
 $artifactsRoot = $publicationRoot
 $portableRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot "免安装版"))
 $installerRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot "安装版"))
-$applicationVersion = "1.0.0.3"
+$applicationVersion = "1.0.0.4"
 $projectPath = Join-Path $repositoryRoot "src\EngineeringQuantityAuditComparer.App\EngineeringQuantityAuditComparer.App.csproj"
 $migrationProject = Join-Path $repositoryRoot "src\LegacyClickOnceMigration\LegacyClickOnceMigration.csproj"
 $migrationDir = Join-Path $repositoryRoot "src\LegacyClickOnceMigration\bin\Release\net48"

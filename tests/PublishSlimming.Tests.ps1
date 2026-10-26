@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory = $true)] [string]$DotNetPath,
     [Parameter(Mandatory = $true)] [string]$OutputRoot,
     [string]$InnoCompilerPath = "",
-    [string]$ExpectedVersion = "1.0.0.3",
+    [string]$ExpectedVersion = "1.0.0.4",
     [double]$MaximumInstallerMiB = 80
 )
 
@@ -40,7 +40,7 @@ if ($portableFiles.Count -gt 15) {
 $required = @(
     '工程量审减分析助手.exe',
     '使用说明.md',
-    '更新说明-1.0.0.3.md',
+    '更新说明-1.0.0.4.md',
     'LICENSE',
     'THIRD-PARTY-NOTICES.md',
     'THIRD-PARTY-LICENSES\MIT.txt',

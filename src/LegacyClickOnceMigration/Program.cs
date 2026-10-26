@@ -10,9 +10,7 @@ namespace LegacyClickOnceMigration;
 internal static class Program
 {
     private const string ProductName = "工程量审减分析助手";
-    private const string Publisher = "yang123-pot";
     private const string UninstallRoot = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\";
-    private const string CommandPrefix = "rundll32.exe dfshim.dll,ShArpMaintain 工程量审减分析助手.app,";
 
     private static int Main(string[] args)
     {
@@ -22,7 +20,7 @@ internal static class Program
                 return 2;
 
             string registryPath = args[0];
-            string? command = ReadVerifiedCommand(registryPath);
+            string? command = LegacyInstallationIdentity.ReadVerifiedCommand(registryPath);
             if (command == null)
                 return 3;
 
@@ -58,22 +56,6 @@ internal static class Program
         {
             Console.Error.WriteLine(exception.GetType().Name + ": " + exception.Message);
             return 7;
-        }
-    }
-
-    private static string? ReadVerifiedCommand(string registryPath)
-    {
-        using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(registryPath))
-        {
-            if (key == null ||
-                !string.Equals(key.GetValue("DisplayName") as string, ProductName, StringComparison.Ordinal) ||
-                !string.Equals(key.GetValue("Publisher") as string, Publisher, StringComparison.Ordinal))
-                return null;
-
-            string? command = key.GetValue("UninstallString") as string;
-            return command != null && command.StartsWith(CommandPrefix, StringComparison.Ordinal)
-                ? command
-                : null;
         }
     }
 

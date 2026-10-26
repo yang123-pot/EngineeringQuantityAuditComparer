@@ -7,7 +7,7 @@
     <AssemblyName>LegacyClickOnceMigration</AssemblyName>
     <RootNamespace>LegacyClickOnceMigration</RootNamespace>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>1.0.0.3</Version>
+    <Version>1.0.0.4</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />

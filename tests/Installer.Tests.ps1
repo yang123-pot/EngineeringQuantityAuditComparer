@@ -19,7 +19,7 @@ $iss = Join-Path $root 'build\Installer.iss'
 $project = Get-Content -LiteralPath (Join-Path $root 'src\EngineeringQuantityAuditComparer.App\EngineeringQuantityAuditComparer.App.csproj') -Raw
 $window = Get-Content -LiteralPath (Join-Path $root 'src\EngineeringQuantityAuditComparer.App\MainWindow.xaml') -Raw
 $migrationProject = Join-Path $root 'src\LegacyClickOnceMigration\LegacyClickOnceMigration.csproj'
-$releaseNotes = Join-Path $root '更新说明-1.0.0.3.md'
+$releaseNotes = Join-Path $root '更新说明-1.0.0.4.md'
 
 Assert-True (Test-Path -LiteralPath $svg -PathType Leaf) '缺少可编辑的 SVG 图标源文件。'
 Assert-True (Test-Path -LiteralPath $ico -PathType Leaf) '缺少 Windows 多尺寸 ICO 图标。'
@@ -45,13 +45,14 @@ foreach ($requiredSize in @(16, 32, 48, 256)) {
 Assert-True (Test-Path -LiteralPath $iss -PathType Leaf) '缺少 Inno Setup 安装脚本。'
 Assert-True (Test-Path -LiteralPath $migrationProject -PathType Leaf) '缺少旧版自动迁移助手。'
 Assert-True (Test-Path -LiteralPath $releaseNotes -PathType Leaf) '缺少本次更新说明。'
-Assert-True ($project.Contains('更新说明-1.0.0.3.md')) '更新说明未随安装包发布。'
+Assert-True ($project.Contains('更新说明-1.0.0.4.md')) '更新说明未随安装包发布。'
 $installer = Get-Content -LiteralPath $iss -Raw
 foreach ($fragment in @(
     'AppId=',
     'PrivilegesRequired=lowest',
     'UsePreviousAppDir=yes',
-    'DisableDirPage=yes',
+    'DisableDirPage=no',
+    'DisableWelcomePage=yes',
     'DisableReadyPage=yes',
     'DisableFinishedPage=yes',
     'SetupIconFile=',
@@ -65,23 +66,28 @@ foreach ($fragment in @(
     'ExtractTemporaryFile',
     'Exec(',
     'FindLegacyClickOnceEntry'
+    'while FindLegacyClickOnceEntry'
+    'LegacyDetectionError'
+    'RemovePreviousLocation'
+    '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART'
 )) {
     Assert-True ($installer.Contains($fragment, [StringComparison]::Ordinal)) "安装脚本缺少：$fragment"
 }
 Assert-True (-not $installer.Contains("Exec('>', Command", [StringComparison]::Ordinal)) '仍直接展示容易误选的旧版维护窗口。'
 Assert-True (-not $installer.Contains('[Run]', [StringComparison]::Ordinal)) '完成页不应再有额外的启动选项。'
 Assert-True ($installer.Contains('procedure CurStepChanged', [StringComparison]::Ordinal)) '安装完成后缺少更新提醒。'
-Assert-True ($installer.Contains('更新说明-1.0.0.3.md', [StringComparison]::Ordinal)) '完成提醒缺少更新说明入口。'
+Assert-True ($installer.Contains('更新说明-1.0.0.4.md', [StringComparison]::Ordinal)) '完成提醒缺少更新说明入口。'
 Assert-True ($installer.Contains('1.0.0.0', [StringComparison]::Ordinal)) '完成提醒未写明从 1.0.0.0 起的累计更新。'
 foreach ($summary in @('新点江苏省 V10、V11 清单', '空编号', '审减分析报告', '楼栋')) {
     Assert-True ($installer.Contains($summary, [StringComparison]::Ordinal)) "完成提醒缺少累计更新内容：$summary"
 }
 $notes = Get-Content -LiteralPath $releaseNotes -Raw
 Assert-True ($notes.Contains('新点江苏省 V10、V11 清单', [StringComparison]::Ordinal)) '随包更新说明与弹窗不一致。'
-Assert-True ($installer.Contains('WizardForm.WelcomeLabel2.Caption', [StringComparison]::Ordinal)) '欢迎页仍可能把安装按钮称为“下一步”。'
+Assert-True ($installer.Contains('WizardForm.SelectDirLabel.Caption', [StringComparison]::Ordinal)) '缺少安装位置选择说明。'
+Assert-True ($installer.Contains("Publisher <> '内部使用'", [StringComparison]::Ordinal)) '安装器未识别原内部使用版。'
 
 if (-not [string]::IsNullOrWhiteSpace($OutputRoot)) {
-    $setup = Join-Path ([IO.Path]::GetFullPath($OutputRoot)) '安装版\工程量审减分析助手-1.0.0.3-安装程序.exe'
+    $setup = Join-Path ([IO.Path]::GetFullPath($OutputRoot)) '安装版\工程量审减分析助手-1.0.0.4-安装程序.exe'
     Assert-True (Test-Path -LiteralPath $setup -PathType Leaf) "缺少独立安装程序：$setup"
     Assert-True ((Get-Item -LiteralPath $setup).Length -gt 1MB) '安装程序异常小。'
 }

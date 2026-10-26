@@ -19,9 +19,9 @@ dotnet run --project src/EngineeringQuantityAuditComparer.App/EngineeringQuantit
 
 ## 安装与更新
 
-在 [Releases](https://github.com/yang123-pot/EngineeringQuantityAuditComparer/releases) 下载最新的 `工程量审减分析助手-版本号-安装程序.exe`，双击后按提示安装。安装程序会创建桌面和开始菜单快捷方式；以后下载的新版本可从任意文件夹运行，安装到同一位置。
+在 [Releases](https://github.com/yang123-pot/EngineeringQuantityAuditComparer/releases) 下载最新安装程序，双击后选择安装磁盘和文件夹，再点击“安装”。安装程序会创建桌面和开始菜单快捷方式；以后下载的新版本可从任意文件夹运行，默认沿用原目录，也可重新选择。
 
-如果电脑上装有旧 ClickOnce 版，安装程序会自动移除对应旧版后再安装新版。未能确认旧版移除时，新版会停止安装并给出提示。免安装版仍可直接解压运行。
+如果电脑上装有发布者为“内部使用”或“yang123-pot”的本软件旧 ClickOnce 版，安装程序会自动移除旧版后再安装新版。已有独立安装版改选目录时，也会先卸载原目录中的版本。未能确认旧版移除时，新版会停止安装并给出提示。免安装版仍可直接解压运行。
 
 ## 使用流程
 
