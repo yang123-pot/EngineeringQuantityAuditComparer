@@ -11,12 +11,17 @@ Windows 10/11 离线桌面工具，用于对比送审工程量清单、审计初
 ```powershell
 git clone https://github.com/yang123-pot/EngineeringQuantityAuditComparer.git
 cd EngineeringQuantityAuditComparer
-dotnet tool restore
 dotnet build EngineeringQuantityAuditComparer.slnx --configuration Release
 dotnet run --project src/EngineeringQuantityAuditComparer.App/EngineeringQuantityAuditComparer.App.csproj
 ```
 
 程序运行所需的报表模板位于 `assets/ReportTemplate.xlsx`，克隆仓库后无需再从其他目录复制模板。
+
+## 安装与更新
+
+在 [Releases](https://github.com/yang123-pot/EngineeringQuantityAuditComparer/releases) 下载最新的 `工程量审减分析助手-版本号-安装程序.exe`，双击后按提示安装。安装程序会创建桌面和开始菜单快捷方式；以后下载的新版本可从任意文件夹运行，安装到同一位置。
+
+如果电脑上装有旧 ClickOnce 版，安装程序会自动移除对应旧版后再安装新版。未能确认旧版移除时，新版会停止安装并给出提示。免安装版仍可直接解压运行。
 
 ## 使用流程
 
@@ -46,10 +51,9 @@ dotnet run --project src/EngineeringQuantityAuditComparer.App/EngineeringQuantit
 
 ## 开发与验证
 
-解决方案使用 .NET SDK 10.0.400，并锁定 ExcelDataReader 3.9.0、ClosedXML 0.105.1、CommunityToolkit.Mvvm 8.4.2。
+解决方案使用 .NET SDK 10.0.400，并锁定 ExcelDataReader 3.9.0、ClosedXML 0.105.1、CommunityToolkit.Mvvm 8.4.2。构建独立安装程序还需要 [Inno Setup 7](https://jrsoftware.org/isdl.php) 的 `ISCC.exe`。
 
 ```powershell
-dotnet tool restore
 dotnet test EngineeringQuantityAuditComparer.slnx --configuration Release
 ./build/Publish.ps1
 ```

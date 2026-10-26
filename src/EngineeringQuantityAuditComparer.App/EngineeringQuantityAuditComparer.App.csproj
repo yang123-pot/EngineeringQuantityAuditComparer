@@ -15,14 +15,17 @@
     <AssemblyName>工程量审减分析助手</AssemblyName>
     <RootNamespace>EngineeringQuantityAuditComparer.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\AppIcon.ico</ApplicationIcon>
     <Product>工程量审减分析助手</Product>
     <Company>yang123-pot</Company>
-    <Version>1.0.0.2</Version>
+    <Version>1.0.0.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="..\..\assets\AppIcon.ico" Link="Assets\AppIcon.ico" />
     <Content Include="..\..\assets\ReportTemplate.xlsx" Link="Assets\ReportTemplate.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\使用说明.md" Link="使用说明.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\更新说明-1.0.0.3.md" Link="更新说明-1.0.0.3.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\THIRD-PARTY-LICENSES\**\*" Link="THIRD-PARTY-LICENSES\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$DotNetPath = "dotnet",
-    [string]$OutputRoot = ""
+    [string]$OutputRoot = "",
+    [string]$InnoCompilerPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,12 +27,33 @@ if ($normalizedPublicationRoot -eq $filesystemRoot) {
 $artifactsRoot = $publicationRoot
 $portableRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot "免安装版"))
 $installerRoot = [IO.Path]::GetFullPath((Join-Path $artifactsRoot "安装版"))
-$applicationVersion = "1.0.0.2"
-$applicationDirectoryName = "工程量审减分析助手_" + $applicationVersion.Replace('.', '_')
-$applicationDirectory = [IO.Path]::GetFullPath((Join-Path $installerRoot "Application Files\$applicationDirectoryName"))
+$applicationVersion = "1.0.0.3"
 $projectPath = Join-Path $repositoryRoot "src\EngineeringQuantityAuditComparer.App\EngineeringQuantityAuditComparer.App.csproj"
+$migrationProject = Join-Path $repositoryRoot "src\LegacyClickOnceMigration\LegacyClickOnceMigration.csproj"
+$migrationDir = Join-Path $repositoryRoot "src\LegacyClickOnceMigration\bin\Release\net48"
 $portablePublishDir = $portableRoot.TrimEnd('\') + '\'
-$clickOncePublishDir = $applicationDirectory.TrimEnd('\') + '\'
+$installerScript = Join-Path $repositoryRoot "build\Installer.iss"
+
+if ([string]::IsNullOrWhiteSpace($InnoCompilerPath)) {
+    $compiler = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($null -ne $compiler) {
+        $InnoCompilerPath = $compiler.Source
+    } else {
+        foreach ($candidate in @(
+            "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
+        )) {
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                $InnoCompilerPath = $candidate
+                break
+            }
+        }
+    }
+}
+if ([string]::IsNullOrWhiteSpace($InnoCompilerPath) -or -not (Test-Path -LiteralPath $InnoCompilerPath -PathType Leaf)) {
+    throw "缺少 Inno Setup 7 编译器 ISCC.exe。请从 https://jrsoftware.org/isdl.php 安装，或传入 -InnoCompilerPath。"
+}
 
 function Assert-ArtifactPath([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -52,31 +74,26 @@ Push-Location $repositoryRoot
 try {
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
     $env:DOTNET_ROLL_FORWARD = "Major"
-    & $DotNetPath tool restore
-    if ($LASTEXITCODE -ne 0) { throw "dotnet tool restore 失败。" }
-
     & $DotNetPath publish $projectPath --nologo -p:PublishProfile=Portable "-p:PublishDir=$portablePublishDir" -p:DebugType=None -p:DebugSymbols=false
     if ($LASTEXITCODE -ne 0) { throw "免安装版发布失败。" }
 
-    & $DotNetPath publish $projectPath --nologo -p:PublishProfile=ClickOnce "-p:PublishDir=$clickOncePublishDir" -p:DebugType=None -p:DebugSymbols=false
-    if ($LASTEXITCODE -ne 0) { throw "ClickOnce 应用文件发布失败。" }
+    & $DotNetPath build $migrationProject --nologo --configuration Release
+    if ($LASTEXITCODE -ne 0) { throw "旧版自动迁移程序编译失败。" }
 
     Get-ChildItem -LiteralPath $artifactsRoot -Filter "*.pdb" -Recurse -File | Remove-Item -Force
 
-    & $DotNetPath mage -AddLauncher "工程量审减分析助手.exe" -TargetDirectory $applicationDirectory
-    if ($LASTEXITCODE -ne 0) { throw "ClickOnce Launcher 生成失败。" }
+    New-Item -ItemType Directory -Path $installerRoot -Force | Out-Null
+    & $InnoCompilerPath "/DPublishDir=$portableRoot" "/DMigrationDir=$migrationDir" "/DInstallerOutputDir=$installerRoot" "/DAppVersion=$applicationVersion" $installerScript
+    if ($LASTEXITCODE -ne 0) { throw "独立安装程序编译失败。" }
 
-    $applicationManifest = Join-Path $applicationDirectory "工程量审减分析助手.exe.manifest"
-    & $DotNetPath mage -New Application -ToFile $applicationManifest -Name "工程量审减分析助手" -Version $applicationVersion -Processor msil -FromDirectory $applicationDirectory
-    if ($LASTEXITCODE -ne 0) { throw "ClickOnce 应用清单生成失败。" }
-
-    $deploymentManifest = Join-Path $installerRoot "工程量审减分析助手.application"
-    & $DotNetPath mage -New Deployment -ToFile $deploymentManifest -Name "工程量审减分析助手" -Version $applicationVersion -Processor msil -Publisher "yang123-pot" -Install true -AppManifest $applicationManifest -AppCodeBase "Application Files\$applicationDirectoryName\工程量审减分析助手.exe.manifest"
-    if ($LASTEXITCODE -ne 0) { throw "ClickOnce 部署清单生成失败。" }
+    $setupPath = Join-Path $installerRoot "工程量审减分析助手-$applicationVersion-安装程序.exe"
+    if (-not (Test-Path -LiteralPath $setupPath -PathType Leaf)) {
+        throw "未生成预期安装程序：$setupPath"
+    }
 
     Write-Host "发布完成："
     Write-Host "  免安装版：$portableRoot"
-    Write-Host "  ClickOnce：$deploymentManifest"
+    Write-Host "  独立安装程序：$setupPath"
 }
 finally {
     Pop-Location

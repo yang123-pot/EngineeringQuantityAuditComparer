@@ -3,6 +3,7 @@
     <Project Path="src/EngineeringQuantityAuditComparer.App/EngineeringQuantityAuditComparer.App.csproj" />
     <Project Path="src/EngineeringQuantityAuditComparer.Core/EngineeringQuantityAuditComparer.Core.csproj" />
     <Project Path="src/EngineeringQuantityAuditComparer.Infrastructure/EngineeringQuantityAuditComparer.Infrastructure.csproj" />
+    <Project Path="src/LegacyClickOnceMigration/LegacyClickOnceMigration.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EngineeringQuantityAuditComparer.Tests/EngineeringQuantityAuditComparer.Tests.csproj" />
